@@ -23,5 +23,8 @@ Cargo.lock
 *.DS_Store
 *.pyc
 
+# data
+data/
+
 # environments
 .env*
