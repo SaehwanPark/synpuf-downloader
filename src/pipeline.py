@@ -20,10 +20,15 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from pathlib import Path
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import time
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -36,18 +41,27 @@ class DESynPUFPipeline:
     """Streamlined pipeline for DE-SynPUF data processing"""
     
     def __init__(self, 
-                 raw_data_dir: str = "raw_data",
-                 output_dir: str = "parquet_data",
+                 base_dir: Optional[str] = None,
                  max_concurrent_downloads: int = 5,
                  chunk_size: int = 8192):
-        self.raw_data_dir = Path(raw_data_dir)
-        self.output_dir = Path(output_dir)
+        
+        # Get base directory from environment or parameter
+        if base_dir is None:
+            base_dir = os.getenv('SYNPUF_DIR', './synpuf_data')
+        
+        self.base_dir = Path(base_dir)
+        self.zip_files_dir = self.base_dir / "zip_files"
+        self.csv_files_dir = self.base_dir / "csv_files"
+        self.temp_files_dir = self.base_dir / "temp_files"
+        self.parquet_files_dir = self.base_dir / "parquet_files"
+        
         self.max_concurrent_downloads = max_concurrent_downloads
         self.chunk_size = chunk_size
         
-        # Create directories
-        self.raw_data_dir.mkdir(exist_ok=True)
-        self.output_dir.mkdir(exist_ok=True)
+        # Create all necessary directories
+        for directory in [self.zip_files_dir, self.csv_files_dir, 
+                         self.temp_files_dir, self.parquet_files_dir]:
+            directory.mkdir(parents=True, exist_ok=True)
         
         # CMS base URL pattern
         self.base_url = "https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/Downloads"
@@ -102,7 +116,7 @@ class DESynPUFPipeline:
                 for file_type, pattern in self.file_patterns.items():
                     filename = pattern.format(sample=sample)
                     url = f"{self.base_url}/{filename}"
-                    filepath = self.raw_data_dir / filename
+                    filepath = self.zip_files_dir / filename
                     
                     download_tasks.append(self.download_file(session, url, filepath))
                     file_paths[file_type].append(filepath)
@@ -132,8 +146,9 @@ class DESynPUFPipeline:
                     logger.warning(f"ZIP file not found: {zip_path}")
                     continue
                 
-                extract_dir = zip_path.parent / zip_path.stem
-                extract_dir.mkdir(exist_ok=True)
+                # Extract to csv_files_dir with organized subdirectory structure
+                extract_dir = self.csv_files_dir / file_type / zip_path.stem
+                extract_dir.mkdir(parents=True, exist_ok=True)
                 
                 try:
                     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -228,7 +243,7 @@ class DESynPUFPipeline:
         table = pa.Table.from_pandas(df)
         
         # Define output path
-        output_path = self.output_dir / file_type
+        output_path = self.parquet_files_dir / file_type
         
         # Write partitioned dataset
         try:
@@ -337,7 +352,7 @@ class DESynPUFPipeline:
         
         summary = {}
         for data_type in ['beneficiary', 'inpatient', 'outpatient', 'carrier', 'prescription']:
-            parquet_path = self.output_dir / data_type
+            parquet_path = self.parquet_files_dir / data_type
             if parquet_path.exists():
                 try:
                     dataset = pq.ParquetDataset(str(parquet_path))
@@ -371,19 +386,23 @@ def run_sample_pipeline(samples: List[int]):
     pipeline = DESynPUFPipeline()
     asyncio.run(pipeline.run_pipeline(samples))
 
-def read_partitioned_data(data_type: str, partition_ids: List[str] = None) -> pd.DataFrame:
+def read_partitioned_data(data_type: str, partition_ids: List[str] = None, base_dir: Optional[str] = None) -> pd.DataFrame:
     """
     Read data from partitioned Parquet files
     
     Args:
         data_type: Type of data ('beneficiary', 'inpatient', etc.)
         partition_ids: List of partition IDs to read (e.g., ['00', '01'])
+        base_dir: Base directory (uses SYNPUF_DIR from env if not provided)
     """
-    output_dir = Path("parquet_data")
-    parquet_path = output_dir / data_type
+    if base_dir is None:
+        base_dir = os.getenv('SYNPUF_DIR', './synpuf_data')
+    
+    parquet_files_dir = Path(base_dir) / "parquet_files"
+    parquet_path = parquet_files_dir / data_type
     
     if not parquet_path.exists():
-        logger.error(f"Parquet data not found for {data_type}")
+        logger.error(f"Parquet data not found for {data_type} at {parquet_path}")
         return pd.DataFrame()
     
     if partition_ids:

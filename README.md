@@ -31,8 +31,25 @@ cd de-synpuf-pipeline
 # Install dependencies with uv
 uv sync
 
+# Set up environment variables
+cp .env.example .env
+# Edit .env to set SYNPUF_DIR to your desired data directory
+
 # Activate the virtual environment
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+### Environment Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+# Base directory for all DE-SynPUF data
+SYNPUF_DIR=/path/to/your/synpuf/data
+
+# Optional: Configure download behavior
+DESYNPUF_MAX_DOWNLOADS=5
+DESYNPUF_CHUNK_SIZE=8192
 ```
 
 ### Basic Usage
@@ -41,18 +58,24 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 from desynpuf_pipeline import DESynPUFPipeline
 import asyncio
 
+# Pipeline will use SYNPUF_DIR from environment variables
 # Quick test with first 2 samples (~115k patients)
 pipeline = DESynPUFPipeline()
 await pipeline.run_pipeline(samples=[1, 2])
 
 # Process full dataset (~2.3M patients) - recommended overnight run
 await pipeline.run_pipeline()  # All 20 samples
+
+# Or specify custom base directory
+pipeline = DESynPUFPipeline(base_dir="/custom/path/to/data")
+await pipeline.run_pipeline(samples=[1, 2])
 ```
 
 ### Reading Processed Data
 
 ```python
 from desynpuf_pipeline import read_partitioned_data
+import os
 
 # Load specific partitions (patient IDs ending in 00, 01, 05)
 beneficiaries = read_partitioned_data('beneficiary', partition_ids=['00', '01', '05'])
@@ -60,11 +83,15 @@ beneficiaries = read_partitioned_data('beneficiary', partition_ids=['00', '01', 
 # Load all prescription drug events
 prescriptions = read_partitioned_data('prescription')
 
+# Use custom base directory
+prescriptions = read_partitioned_data('prescription', base_dir="/custom/path/to/data")
+
 # Load with PyArrow for advanced filtering
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
 
-dataset = pq.ParquetDataset('parquet_data/inpatient')
+base_dir = os.getenv('SYNPUF_DIR', './synpuf_data')
+dataset = pq.ParquetDataset(f'{base_dir}/parquet_files/inpatient')
 # Filter for high-cost claims
 expensive_claims = dataset.read(
     filter=pc.greater(pc.field('CLM_PMT_AMT'), 50000)
@@ -78,18 +105,23 @@ de-synpuf-pipeline/
 ├── desynpuf_pipeline.py      # Main pipeline implementation
 ├── desynpuf_config.py        # Configuration and URL mappings
 ├── pyproject.toml            # Project dependencies and metadata
+├── .env.example              # Environment variables template
+├── .env                      # Your environment configuration (create this)
 ├── README.md                 # This file
 ├── examples/                 # Usage examples and tutorials
 │   ├── basic_usage.py
 │   ├── ml_preprocessing.py
 │   └── analytics_examples.py
-├── raw_data/                 # Downloaded ZIP/CSV files (created by pipeline)
-└── parquet_data/             # Output Parquet datasets (created by pipeline)
-    ├── beneficiary/
-    ├── inpatient/
-    ├── outpatient/
-    ├── carrier/
-    └── prescription/
+└── synpuf_data/              # Data directory (location set by SYNPUF_DIR)
+    ├── zip_files/            # Downloaded ZIP files from CMS
+    ├── csv_files/            # Extracted CSV files organized by type
+    ├── temp_files/           # Temporary/intermediate processing files
+    └── parquet_files/        # Final partitioned Parquet datasets
+        ├── beneficiary/
+        ├── inpatient/
+        ├── outpatient/
+        ├── carrier/
+        └── prescription/
 ```
 
 ## Dataset Structure
@@ -132,10 +164,16 @@ await pipeline.run_pipeline()  # ~2.3M patients
 ```python
 # High-performance configuration
 pipeline = DESynPUFPipeline(
-    max_concurrent_downloads=10,  # Increase download parallelism
-    chunk_size=16384,            # Larger download chunks
-    raw_data_dir="./fast_ssd/raw_data",  # Use SSD storage
-    output_dir="./fast_ssd/parquet_data"
+    base_dir="/fast_ssd/synpuf_data",  # Use SSD storage
+    max_concurrent_downloads=10,       # Increase download parallelism
+    chunk_size=16384                   # Larger download chunks
+)
+
+# Or use environment variable
+# Set SYNPUF_DIR=/fast_ssd/synpuf_data in .env
+pipeline = DESynPUFPipeline(
+    max_concurrent_downloads=10,
+    chunk_size=16384
 )
 ```
 
@@ -157,6 +195,7 @@ pandas = "^2.0.0"
 pyarrow = "^15.0.0"
 aiohttp = "^3.9.0"
 aiofiles = "^23.0.0"
+python-dotenv = "^1.0.0"
 ```
 
 Development dependencies:
@@ -188,13 +227,15 @@ jupyter = "^1.0.0"
 ```python
 # Diabetes cohort analysis
 import pyarrow.compute as pc
+import os
 
 # Load diabetes patients across all datasets
 beneficiaries = read_partitioned_data('beneficiary')
 diabetes_patients = beneficiaries[beneficiaries['SP_DIABETES'] == 1]['DESYNPUF_ID']
 
 # Get their prescription data
-prescription_dataset = pq.ParquetDataset('parquet_data/prescription')
+base_dir = os.getenv('SYNPUF_DIR', './synpuf_data')
+prescription_dataset = pq.ParquetDataset(f'{base_dir}/parquet_files/prescription')
 diabetes_prescriptions = prescription_dataset.read(
     filter=pc.is_in(pc.field('DESYNPUF_ID'), diabetes_patients.values)
 ).to_pandas()
@@ -285,13 +326,21 @@ pipeline = DESynPUFPipeline(
 ### Environment Variables
 
 ```bash
-# Optional: Configure custom paths
-export DESYNPUF_RAW_DATA_DIR="/path/to/raw/data"
-export DESYNPUF_OUTPUT_DIR="/path/to/parquet/output"
+# Required: Base directory for all DE-SynPUF data
+SYNPUF_DIR="/path/to/your/synpuf/data"
 
 # Optional: Configure download behavior  
-export DESYNPUF_MAX_DOWNLOADS=5
-export DESYNPUF_CHUNK_SIZE=8192
+DESYNPUF_MAX_DOWNLOADS=5
+DESYNPUF_CHUNK_SIZE=8192
+```
+
+Create a `.env.example` file:
+
+```bash
+# Copy this to .env and customize
+SYNPUF_DIR=./synpuf_data
+DESYNPUF_MAX_DOWNLOADS=5
+DESYNPUF_CHUNK_SIZE=8192
 ```
 
 ## Contributing

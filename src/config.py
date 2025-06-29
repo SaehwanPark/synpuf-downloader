@@ -6,6 +6,12 @@ Contains exact URLs, schema definitions, and optimization settings
 
 from typing import Dict, List, Any
 import pandas as pd
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class DESynPUFConfig:
     """Configuration class for DE-SynPUF dataset processing"""
@@ -393,9 +399,15 @@ class EnhancedDESynPUFPipeline:
     def __init__(self, config: DESynPUFConfig = None, **kwargs):
         self.config = config or DESynPUFConfig()
         
-        # Override default settings with kwargs
-        self.raw_data_dir = Path(kwargs.get('raw_data_dir', 'raw_data'))
-        self.output_dir = Path(kwargs.get('output_dir', 'parquet_data'))
+        # Get base directory from environment or parameter
+        base_dir = kwargs.get('base_dir') or os.getenv('SYNPUF_DIR', './synpuf_data')
+        self.base_dir = Path(base_dir)
+        
+        # Set up directory structure
+        self.zip_files_dir = self.base_dir / "zip_files"
+        self.csv_files_dir = self.base_dir / "csv_files"
+        self.temp_files_dir = self.base_dir / "temp_files"
+        self.parquet_files_dir = self.base_dir / "parquet_files"
         
         # Use config settings
         download_settings = self.config.DOWNLOAD_SETTINGS
@@ -405,8 +417,9 @@ class EnhancedDESynPUFPipeline:
         self.timeout_seconds = kwargs.get('timeout_seconds', download_settings['timeout_seconds'])
         
         # Create directories
-        self.raw_data_dir.mkdir(exist_ok=True)
-        self.output_dir.mkdir(exist_ok=True)
+        for directory in [self.zip_files_dir, self.csv_files_dir, 
+                         self.temp_files_dir, self.parquet_files_dir]:
+            directory.mkdir(parents=True, exist_ok=True)
     
     def get_optimized_read_kwargs(self, data_type: str) -> Dict[str, Any]:
         """Get optimized pandas read_csv kwargs for specific data type"""
@@ -429,12 +442,20 @@ class EnhancedDESynPUFPipeline:
 
 
 # Utility functions for working with partitioned data
-def analyze_partition_distribution(parquet_path: str) -> Dict[str, Any]:
+def analyze_partition_distribution(data_type: str, base_dir: str = None) -> Dict[str, Any]:
     """Analyze partition distribution in a partitioned dataset"""
     import pyarrow.parquet as pq
     from collections import Counter
     
-    dataset = pq.ParquetDataset(parquet_path)
+    if base_dir is None:
+        base_dir = os.getenv('SYNPUF_DIR', './synpuf_data')
+    
+    parquet_path = Path(base_dir) / "parquet_files" / data_type
+    
+    if not parquet_path.exists():
+        raise FileNotFoundError(f"Parquet data not found at {parquet_path}")
+    
+    dataset = pq.ParquetDataset(str(parquet_path))
     
     # Extract partition information
     partition_info = []
@@ -487,16 +508,19 @@ beneficiary_subset = read_partitioned_data('beneficiary', partition_ids=['00', '
 # Filter beneficiary data for diabetes patients
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
+import os
 
-dataset = pq.ParquetDataset('parquet_data/beneficiary')
+base_dir = os.getenv('SYNPUF_DIR', './synpuf_data')
+dataset_path = f"{base_dir}/parquet_files/beneficiary"
+dataset = pq.ParquetDataset(dataset_path)
 diabetes_filter = pc.equal(pc.field('SP_DIABETES'), 1)
 diabetes_patients = dataset.read(filter=diabetes_filter).to_pandas()
         ''',
         
         'join_across_datasets': '''
 # Join beneficiary and inpatient data
-beneficiary_df = pd.read_parquet('parquet_data/beneficiary')
-inpatient_df = pd.read_parquet('parquet_data/inpatient')
+beneficiary_df = read_partitioned_data('beneficiary')
+inpatient_df = read_partitioned_data('inpatient')
 
 # Join on DESYNPUF_ID
 joined_data = beneficiary_df.merge(
@@ -509,8 +533,11 @@ joined_data = beneficiary_df.merge(
         'memory_efficient_processing': '''
 # Process large datasets in chunks using PyArrow
 import pyarrow.parquet as pq
+import os
 
-dataset = pq.ParquetDataset('parquet_data/carrier')
+base_dir = os.getenv('SYNPUF_DIR', './synpuf_data')
+dataset_path = f"{base_dir}/parquet_files/carrier"
+dataset = pq.ParquetDataset(dataset_path)
 total_payments = 0
 patient_count = 0
 
