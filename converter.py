@@ -80,6 +80,10 @@ class SynPUFConverter:
         }
         
         self.logger.info(f"Initialized SynPUF converter for {self.synpuf_dir}")
+        
+        # Print clean status to console
+        print(f"📁 Output directory: {self.synpuf_dir}")
+        print(f"📝 Log file: {self.log_file}")
     
     def _setup_logging(self, log_level: str):
         """Configure logging with both console and file output."""
@@ -136,9 +140,13 @@ class SynPUFConverter:
         for file_type in csv_files:
             csv_files[file_type].sort(key=lambda x: x[1])
         
-        # Log summary
+        # Log summary to file
         for file_type, files in csv_files.items():
             self.logger.info(f"Found {len(files)} {file_type} files")
+        
+        # Print clean summary to console  
+        total_files = sum(len(files) for files in csv_files.values())
+        print(f"📊 Found {total_files} CSV files across {len([f for f in csv_files.values() if f])} file types")
         
         return csv_files
     
@@ -269,6 +277,7 @@ class SynPUFConverter:
         )
         
         file_size_mb = csv_file.stat().st_size / 1024 / 1024
+        # Log detailed info to file only
         self.logger.info(f"Reading {csv_file.name} ({file_size_mb:.1f} MB)")
         
         try:
@@ -279,6 +288,7 @@ class SynPUFConverter:
                 parse_options=parse_options
             )
             
+            # Log to file only
             self.logger.info(f"Loaded {len(table):,} rows, {len(table.columns)} columns")
             return table
             
@@ -295,7 +305,11 @@ class SynPUFConverter:
         Returns:
             Combined PyArrow table with sample partition column
         """
+        # Log to file
         self.logger.info("Combining carrier claims A and B files")
+        
+        # Clean console output
+        print(f"\n🔄 Combining carrier claims A and B files...")
         
         combined_tables = []
         
@@ -320,7 +334,8 @@ class SynPUFConverter:
         
         base_schema = self._infer_schema_with_string_columns(first_file)
         
-        with tqdm(total=len(all_samples), desc="Processing carrier claims") as pbar:
+        with tqdm(total=len(all_samples), desc="Processing carrier claims", 
+                 leave=False, dynamic_ncols=True) as pbar:
             for sample in all_samples:
                 sample_tables = []
                 
@@ -350,7 +365,12 @@ class SynPUFConverter:
         
         # Combine all samples
         final_table = pa.concat_tables(combined_tables)
+        
+        # Log to file
         self.logger.info(f"Combined carrier claims: {len(final_table)} total rows")
+        
+        # Clean console output
+        print(f"✅ Combined carrier claims: {len(final_table):,} rows")
         
         return final_table
     
@@ -371,7 +391,11 @@ class SynPUFConverter:
                 self.logger.warning(f"No files found for {file_type}")
                 return True
             
+            # Log to file
             self.logger.info(f"Converting {file_type} files to {output_name}")
+            
+            # Clean console output
+            print(f"\n🔄 Converting {len(files)} {file_type} files...")
             
             # Infer schema from first file (without sample column)
             first_file = files[0][0]
@@ -380,7 +404,8 @@ class SynPUFConverter:
             # Process all files
             all_tables = []
             
-            with tqdm(total=len(files), desc=f"Processing {file_type}") as pbar:
+            with tqdm(total=len(files), desc=f"Processing {file_type}", 
+                     leave=False, dynamic_ncols=True) as pbar:
                 for csv_file, sample_num in files:
                     # Read CSV with base schema
                     table = self._read_csv_efficiently(csv_file, base_schema)
@@ -416,11 +441,17 @@ class SynPUFConverter:
                 max_rows_per_file=1000000  # 1M rows per file for manageable file sizes
             )
             
+            # Log detailed info to file
             self.logger.info(f"Successfully wrote {output_name} with {len(combined_table)} rows")
+            
+            # Clean console output
+            print(f"✅ Completed {file_type}: {len(combined_table):,} rows")
+            
             return True
             
         except Exception as e:
             self.logger.error(f"Error converting {file_type}: {e}")
+            print(f"❌ Failed {file_type}: {e}")
             return False
     
     def convert_all(self) -> bool:
@@ -486,10 +517,12 @@ class SynPUFConverter:
                     max_rows_per_file=2000000  # 2M rows per file for carrier claims (larger files)
                 )
                 
+                # Log to file
                 self.logger.info(f"Successfully wrote carrier claims with {len(combined_table)} rows")
                 
             except Exception as e:
                 self.logger.error(f"Error combining carrier claims: {e}")
+                print(f"❌ Failed carrier claims: {e}")
                 all_successful = False
         
         return all_successful
@@ -501,18 +534,18 @@ class SynPUFConverter:
             Formatted summary string
         """
         if not self.parquet_dir.exists():
-            return "No parquet files found."
+            return "\n📂 No parquet files found."
         
         summary_lines = [
             "\n" + "="*50,
-            "CONVERSION SUMMARY",
+            "📊 CONVERSION SUMMARY",
             "="*50
         ]
         
         parquet_dirs = list(self.parquet_dir.glob("*.parquet"))
         
         if not parquet_dirs:
-            summary_lines.append("No parquet datasets found.")
+            summary_lines.append("📂 No parquet datasets found.")
         else:
             for parquet_dir in sorted(parquet_dirs):
                 try:
@@ -548,31 +581,31 @@ class SynPUFConverter:
                                 row_count = "Unknown"
                         
                         summary_lines.extend([
-                            f"{parquet_dir.name}:",
-                            f"  Partitions: {num_files}",
-                            f"  Rows: {row_count if isinstance(row_count, str) else f'{row_count:,}'}",
-                            f"  Columns: {col_count}",
-                            f"  Size: {size_mb:.1f} MB",
+                            f"📄 {parquet_dir.name}:",
+                            f"   Partitions: {num_files}",
+                            f"   Rows: {row_count if isinstance(row_count, str) else f'{row_count:,}'}",
+                            f"   Columns: {col_count}",
+                            f"   Size: {size_mb:.1f} MB",
                             ""
                         ])
                     except Exception as e:
                         summary_lines.extend([
-                            f"{parquet_dir.name}:",
-                            f"  Partitions: {num_files}",
-                            f"  (Unable to read statistics: {e})",
+                            f"📄 {parquet_dir.name}:",
+                            f"   Partitions: {num_files}",
+                            f"   ⚠️  Unable to read statistics: {e}",
                             ""
                         ])
                         
                 except Exception as e:
                     summary_lines.extend([
-                        f"{parquet_dir.name}:",
-                        f"  Error: {e}",
+                        f"📄 {parquet_dir.name}:",
+                        f"   ❌ Error: {e}",
                         ""
                     ])
         
         summary_lines.extend([
             "="*50,
-            f"Log file: {self.log_file}",
+            f"📝 Log file: {self.log_file}",
             "="*50
         ])
         
@@ -615,9 +648,6 @@ Output Structure:
     
     args = parser.parse_args()
     
-    # Configure logging level
-    logging.basicConfig(level=getattr(logging, args.log_level))
-    
     # Determine input directory
     synpuf_dir = args.input_dir or os.getenv('SYNPUF_DIR')
     if not synpuf_dir:
@@ -626,9 +656,7 @@ Output Structure:
     # Initialize converter and start processing
     converter = SynPUFConverter(synpuf_dir, args.log_level)
     
-    print(f"SynPUF CSV to Parquet Converter")
-    print(f"Input directory: {synpuf_dir}")
-    print(f"Log file: {converter.log_file}")
+    print(f"\n🚀 SynPUF CSV to Parquet Converter")
     print("-" * 50)
     
     success = converter.convert_all()
