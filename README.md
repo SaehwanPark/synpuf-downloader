@@ -1,115 +1,233 @@
-# SynPUF CLI Downloader
+# SynPUF Tools
 
-A command-line tool for downloading and extracting CMS SynPUF (Synthetic Public Use Files) data. This tool handles all 20 samples of the DE-SynPUF dataset with progress tracking, proper error handling, and automatic file extraction.
+A comprehensive toolkit for downloading and processing CMS SynPUF (Synthetic Public Use Files) data. This includes a downloader for acquiring the raw data and a converter for transforming CSV files to efficient Parquet format.
+
+## Tools Included
+
+1. **`downloader.py`** - Downloads and extracts all 20 SynPUF samples
+2. **`converter.py`** - Converts CSV files to partitioned Parquet format
 
 ## Features
 
+### Downloader
 - **Complete Coverage**: Downloads all file types from all 20 SynPUF samples
-- **Progress Tracking**: Visual progress bars using `tqdm` for downloads and extractions
-- **Smart URL Handling**: Automatically handles the three different CMS URL patterns
-- **Error Recovery**: Robust error handling with retry logic
-- **Skip Existing Files**: Option to skip already downloaded files
-- **Organized Output**: Separates ZIP files and extracted CSV files into organized directories
-- **Environment Configuration**: Uses `.env` files for configuration management
-- **Comprehensive Logging**: Detailed logging for debugging and monitoring
+- **Progress Tracking**: Visual progress bars using `tqdm` 
+- **Smart URL Handling**: Handles CMS's inconsistent URL patterns
+- **Error Recovery**: Robust error handling with detailed failure reporting
+- **Persistent Logging**: Complete operation logs for debugging
+
+### Converter  
+- **Efficient Processing**: Uses PyArrow 20.0.0 for optimal performance with large files
+- **Modern API**: Uses the latest Dataset API (no legacy dataset dependencies)
+- **Partitioned Output**: Creates sample-partitioned Parquet datasets
+- **Data Combining**: Merges Carrier Claims A/B files automatically
+- **Type Safety**: Proper handling of nullable integers and string IDs/codes
+- **Memory Efficient**: Streams large files (64MB chunks) without loading everything into memory
+- **Smart Schema Detection**: Automatically preserves medical codes and IDs as strings
+
+## Requirements
+
+- **Python**: 3.13+
+- **PyArrow**: 20.0.0+  
+- **Pandas**: 2.3.0+
+- **uv**: For package management (recommended)
 
 ## Installation
 
-1. **Clone or download the script files**
+**Using uv (recommended)**:
+```bash
+uv sync
+```
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+**Using pip**:
+```bash
+pip install -r requirements.txt
+```
 
-3. **Configure environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env to set your SYNPUF_DIR path
-   ```
+## Configuration
+
+Create a `.env` file from the template:
+```bash
+cp .env.example .env
+# Edit .env to set your SYNPUF_DIR path
+```
 
 ## Usage
 
-### Basic Commands
+### Download SynPUF Data
 
 Download specific samples:
 ```bash
-python synpuf_downloader.py --samples 1 2 3
+python downloader.py --samples 1 2 3
 ```
 
 Download all 20 samples:
 ```bash
-python synpuf_downloader.py --all
-```
-
-Force re-download existing files:
-```bash
-python synpuf_downloader.py --samples 5 --force
+python downloader.py --all
 ```
 
 Validate URLs without downloading:
 ```bash
-python synpuf_downloader.py --samples 1 20 --validate
+python downloader.py --samples 1 20 --validate
 ```
 
-Override output directory:
+### Convert to Parquet
+
+Convert all CSV files to Parquet:
 ```bash
-python synpuf_downloader.py --samples 1 --output-dir /custom/path
+python converter.py
 ```
 
-### Command Line Options
+With custom directory:
+```bash
+python converter.py --input-dir /path/to/synpuf
+```
+
+### Complete Workflow
+
+```bash
+# 1. Download all samples
+python downloader.py --all
+
+# 2. Convert to Parquet format
+python converter.py
+
+# 3. Verify results
+ls -la ${SYNPUF_DIR}/parquets/
+```
+
+### Downloader Options
 
 - `--samples N [N ...]`: Specify sample numbers to download (1-20)
 - `--all`: Download all 20 samples
-- `--validate`: Validate URLs without downloading (useful for testing)
+- `--validate`: Validate URLs without downloading
 - `--force`: Re-download files even if they already exist
 - `--output-dir PATH`: Override the SYNPUF_DIR environment variable
+- `--log-level LEVEL`: Set logging level (DEBUG, INFO, WARNING, ERROR)
+
+### Converter Options
+
+- `--input-dir PATH`: SynPUF directory (overrides SYNPUF_DIR)
 - `--log-level LEVEL`: Set logging level (DEBUG, INFO, WARNING, ERROR)
 
 ### Environment Variables
 
 Set these in your `.env` file:
 
-- `SYNPUF_DIR`: Base directory for downloads (required)
+- `SYNPUF_DIR`: Base directory for all operations (required)
+
+## Converter Features
+
+### Intelligent Type Handling
+- **Nullable Integers**: Proper PyArrow nullable integer types
+- **String Preservation**: ID fields, diagnosis codes, procedure codes kept as strings
+- **Schema Inference**: Automatic schema detection with manual overrides
+
+### Performance Optimizations
+- **Chunked Reading**: 64MB blocks for optimal I/O performance
+- **Partitioned Output**: Sample-based partitioning for fast querying
+- **Compression**: Snappy compression with dictionary encoding
+- **Statistics**: Parquet metadata for query optimization
+- **File Size Management**: Configurable max rows per file (1M for beneficiary, 2M for claims)
+- **Memory Management**: Configurable max open files (1000 default)
+
+### Data Quality
+- **Carrier Claims Combining**: Merges A/B files seamlessly
+- **Missing Value Handling**: Proper null value representation
+- **Type Safety**: Prevents data type conversion errors
+
+## Example Output
+
+### Downloader
+```
+SynPUF Downloader
+Output directory: /home/saehwan/data/synpuf
+Log file: /home/saehwan/data/synpuf/logs/synpuf_download_20250713_103015.log
+Samples to process: [1, 2]
+Skip existing files: True
+--------------------------------------------------
+DE1_0_2008_Beneficiary_Summary_File_Sample_1.zip: 100%|██████████| 2.1M/2.1M [00:03<00:00, 621kB/s]
+
+==================================================
+DOWNLOAD SUMMARY
+==================================================
+Total files expected:      16
+Successful downloads:      16
+Download success rate:     100.0%
+==================================================
+```
+
+### Converter
+```
+SynPUF CSV to Parquet Converter
+Input directory: /home/saehwan/data/synpuf
+--------------------------------------------------
+Processing beneficiary_2008: 100%|██████████| 20/20 [00:45<00:00, 2.25s/file]
+Processing carrier claims: 100%|██████████| 20/20 [05:23<00:00, 16.17s/sample]
+
+==================================================
+CONVERSION SUMMARY
+==================================================
+DE1_0_2008_Beneficiary_Summary_File.parquet:
+  Files: 20
+  Rows: 2,326,856
+  Columns: 28
+  Size: 45.2 MB
+
+DE1_0_2008_to_2010_Carrier_Claims.parquet:
+  Files: 40
+  Rows: 9,895,904
+  Columns: 24
+  Size: 1,247.3 MB
+==================================================
+```
 
 ## Data Structure
 
-The tool creates the following directory structure:
+The tools create the following directory structure:
 
 ```
 ${SYNPUF_DIR}/
-├── zip_files/          # Original ZIP files from CMS
+├── zip_files/          # Original ZIP files from CMS (downloader)
 │   ├── de1_0_2008_beneficiary_summary_file_sample_1.zip
 │   ├── DE1_0_2008_to_2010_Carrier_Claims_Sample_1A.zip
 │   └── ...
-├── csv_files/          # Extracted CSV files
+├── csv_files/          # Extracted CSV files (downloader)
 │   ├── DE1_0_2008_Beneficiary_Summary_File_Sample_1.csv
 │   ├── DE1_0_2008_to_2010_Carrier_Claims_Sample_1A.csv
 │   └── ...
-└── logs/              # Persistent log files
+├── parquets/           # Partitioned Parquet datasets (converter)
+│   ├── DE1_0_2008_Beneficiary_Summary_File.parquet/
+│   │   ├── sample=1/
+│   │   ├── sample=2/
+│   │   └── ...
+│   ├── DE1_0_2008_to_2010_Carrier_Claims.parquet/ (A+B combined)
+│   │   ├── sample=1/
+│   │   └── ...
+│   └── DE1_0_2008_to_2010_Prescription_Drug_Events.parquet/
+└── logs/              # Operation logs
     ├── synpuf_download_20250713_103015.log
-    └── ...
+    └── synpuf_convert_20250713_145020.log
 ```
 
-## File Types Downloaded
+## File Types and Processing
 
-For each sample (1-20), the tool downloads:
-
+### Downloaded Files (per sample)
 1. **Beneficiary Summary Files** (3 files):
-   - 2008 Beneficiary Summary
-   - 2009 Beneficiary Summary  
-   - 2010 Beneficiary Summary
-
+   - 2008, 2009, 2010 Beneficiary Summary
 2. **Claims Files** (4 files):
-   - Carrier Claims Part A
-   - Carrier Claims Part B
+   - Carrier Claims Part A & B (combined in Parquet)
    - Inpatient Claims
    - Outpatient Claims
-
-3. **Prescription Drug Events** (1 file):
-   - 2008-2010 Prescription Drug Events
+3. **Prescription Drug Events** (1 file)
 
 **Total: 8 files per sample × 20 samples = 160 files**
+
+### Parquet Output Structure
+- **Partitioned by Sample**: Each dataset partitioned by sample number (1-20)
+- **Carrier Claims Combined**: A and B files merged into single dataset
+- **Optimized Types**: Proper nullable integers, string IDs preserved
+- **Compressed**: Snappy compression with dictionary encoding
 
 ## Validation Mode
 
