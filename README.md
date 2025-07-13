@@ -116,9 +116,15 @@ Set these in your `.env` file:
 
 - `SYNPUF_DIR`: Base directory for all operations (required)
 
-## Converter Features
+### Converter Features
 
-### Intelligent Type Handling
+#### Clean Console Output
+- **Progress Bars**: Clean tqdm progress bars without logging interference
+- **Status Updates**: Clear emoji-based status messages 
+- **File Logging**: All detailed logs written to timestamped files only
+- **Error Display**: Important errors shown on console with details in logs
+
+#### Intelligent Type Handling
 - **Nullable Integers**: Proper PyArrow nullable integer types
 - **String Preservation**: ID fields, diagnosis codes, procedure codes kept as strings
 - **Schema Inference**: Automatic schema detection with manual overrides
@@ -159,27 +165,37 @@ Download success rate:     100.0%
 
 ### Converter
 ```
-SynPUF CSV to Parquet Converter
-Input directory: /home/saehwan/data/synpuf
+🚀 SynPUF CSV to Parquet Converter
 --------------------------------------------------
+📁 Output directory: /home/saehwan/data/synpuf
+📝 Log file: /home/saehwan/data/synpuf/logs/synpuf_convert_20250713_145020.log
+📊 Found 160 CSV files across 8 file types
+
+🔄 Converting 20 beneficiary_2008 files...
 Processing beneficiary_2008: 100%|██████████| 20/20 [00:45<00:00, 2.25s/file]
+✅ Completed beneficiary_2008: 2,326,856 rows
+
+🔄 Combining carrier claims A and B files...
 Processing carrier claims: 100%|██████████| 20/20 [05:23<00:00, 16.17s/sample]
+✅ Combined carrier claims: 9,895,904 rows
 
 ==================================================
-CONVERSION SUMMARY
+📊 CONVERSION SUMMARY
 ==================================================
-DE1_0_2008_Beneficiary_Summary_File.parquet:
-  Files: 20
-  Rows: 2,326,856
-  Columns: 28
-  Size: 45.2 MB
+📄 DE1_0_2008_Beneficiary_Summary_File.parquet:
+   Partitions: 20
+   Rows: 2,326,856
+   Columns: 32
+   Size: 45.2 MB
 
-DE1_0_2008_to_2010_Carrier_Claims.parquet:
-  Files: 40
-  Rows: 9,895,904
-  Columns: 24
-  Size: 1,247.3 MB
+📄 DE1_0_2008_to_2010_Carrier_Claims.parquet:
+   Partitions: 40
+   Rows: 9,895,904
+   Columns: 142
+   Size: 1,247.3 MB
 ==================================================
+
+✅ All conversions completed successfully!
 ```
 
 ## Data Structure
