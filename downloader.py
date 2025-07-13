@@ -126,6 +126,13 @@ class SynPUFDownloader:
             }
         }
         
+        # Special filename patterns (CMS inconsistencies)
+        special_filenames = {
+            11: {
+                'carrier_a': "DE1_0_2008_to_2010_Carrier_Claims_Sample_11A.csv.zip"
+            }
+        }
+        
         # Generate beneficiary summary file URLs
         for year in [2008, 2009, 2010]:
             # Check for special patterns first
@@ -146,7 +153,13 @@ class SynPUFDownloader:
         
         # Carrier Claims (A and B parts) - consistent across all samples
         for part in ['A', 'B']:
-            filename = f"DE1_0_2008_to_2010_Carrier_Claims_Sample_{sample_num}{part}.zip"
+            # Check for special filename patterns
+            special_key = f'carrier_{part.lower()}'
+            if sample_num in special_filenames and special_key in special_filenames[sample_num]:
+                filename = special_filenames[sample_num][special_key]
+            else:
+                filename = f"DE1_0_2008_to_2010_Carrier_Claims_Sample_{sample_num}{part}.zip"
+            
             url = carrier_prescription_base + filename
             urls.append((url, filename))
         
@@ -171,6 +184,8 @@ class SynPUFDownloader:
         urls.append((url, filename))
         
         self.logger.debug(f"Generated {len(urls)} URLs for sample {sample_num}")
+        if sample_num in special_filenames:
+            self.logger.debug(f"Applied special filename patterns for sample {sample_num}: {special_filenames[sample_num]}")
         return urls
     
     def validate_urls(self, sample_num: int) -> Dict[str, bool]:

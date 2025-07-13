@@ -141,12 +141,26 @@ The tool automatically handles CMS's inconsistent URL patterns based on empirica
 
 ### Special Cases
 - **Sample 1**: 2010 Beneficiary file uses `https://www.cms.gov/sites/default/files/2020-09/`
+- **Sample 11**: Carrier Claims A file has `.csv.zip` extension instead of `.zip`
 - **Sample 20**: 
   - 2008 Beneficiary uses `https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/synpufs/downloads/`
   - Inpatient Claims uses `https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/synpufs/downloads/`
 
 ### Consistent Across All Samples
 - **Carrier Claims & Prescription Events**: `http://downloads.cms.gov/files/`
+
+## CMS Data Inconsistencies
+
+The tool handles various CMS naming and URL inconsistencies discovered through empirical testing:
+
+- **URL Path Variations**: Different base paths for the same file types across samples
+- **Filename Casing**: Mix of uppercase/lowercase in filenames (e.g., `DE1_0` vs `de1_0`)
+- **File Extensions**: Sample 11 Carrier A uses `.csv.zip` instead of `.zip`
+- **Year-Specific Patterns**: Sample 1's 2010 files use different URL structure
+
+These inconsistencies are automatically handled by the downloader, but may require updates if CMS changes their file organization.
+
+**Adding New Special Cases**: If you discover additional CMS inconsistencies, they can be easily added to the `special_filenames` or `special_patterns` dictionaries in the code.
 
 ## Example Output
 
