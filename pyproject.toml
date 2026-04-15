@@ -1,21 +1,74 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
 [project]
 name = "synpuf-downloader"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "Functional SynPUF downloader and converter for CMS synthetic public use files."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 dependencies = [
-    "aiofiles>=24.1.0",
-    "aiohttp>=3.12.13",
-    "black>=25.1.0",
-    "dask>=2025.5.1",
-    "jupyter>=1.1.1",
-    "mypy>=1.16.1",
-    "pandas>=2.3.0",
-    "pyarrow>=20.0.0",
-    "pytest>=8.4.1",
-    "pytest-asyncio>=1.0.0",
-    "python-dotenv>=1.1.1",
-    "ruff>=0.12.1",
-    "tqdm>=4.67.1",
+  "pyarrow>=20.0.0",
+  "pydantic>=2.11.4",
+  "python-dotenv>=1.1.1",
+  "requests>=2.32.3",
+  "tqdm>=4.67.1",
 ]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.16.1",
+  "pytest>=8.4.1",
+  "ruff>=0.12.1",
+  "types-requests>=2.32.0.20250429",
+]
+
+[project.scripts]
+synpuf-downloader = "synpuf_downloader.cli.downloader:main"
+synpuf-converter = "synpuf_downloader.cli.converter:main"
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/synpuf_downloader"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+mypy_path = ["src"]
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = [
+  "dotenv",
+  "pyarrow",
+  "pyarrow.csv",
+  "pyarrow.dataset",
+  "pyarrow.parquet",
+  "tqdm",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+indent-width = 2
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["B", "C4", "E", "F", "I", "N", "PTH", "RET", "RUF", "SIM", "UP", "W"]
+ignore = ["E111", "E114", "E117"]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+docstring-code-format = true
