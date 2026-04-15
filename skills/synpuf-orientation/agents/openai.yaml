@@ -1,0 +1,8 @@
+interface:
+  display_name: "SynPUF Orientation"
+  short_description: "Locate files and decode SynPUF schemas"
+  default_prompt: "Use $synpuf-orientation to find the right SynPUF files, joins, and field meanings."
+
+policy:
+  allow_implicit_invocation: true
+

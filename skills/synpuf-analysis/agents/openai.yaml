@@ -1,0 +1,8 @@
+interface:
+  display_name: "SynPUF Analysis"
+  short_description: "Build cohorts and models from SynPUF"
+  default_prompt: "Use $synpuf-analysis to design cohorts, features, and model-ready SynPUF analyses."
+
+policy:
+  allow_implicit_invocation: true
+
