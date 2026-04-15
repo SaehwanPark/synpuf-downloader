@@ -72,6 +72,7 @@ def write_partitioned_dataset(
     existing_data_behavior='overwrite_or_ignore',
     max_open_files=1000,
     max_rows_per_file=max_rows_per_file,
+    max_rows_per_group=max_rows_per_file,
   )
 
 

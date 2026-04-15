@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from synpuf_downloader.application.conversion import run_conversion
-from synpuf_downloader.domain import DatasetKind, OutputLayout
+from synpuf_downloader.domain import ConversionStatus, DatasetKind, OutputLayout
 from synpuf_downloader.infrastructure.arrow_io import (
   infer_schema,
   inspect_dataset,
@@ -47,7 +47,14 @@ def test_run_conversion_writes_partitioned_outputs(tmp_path: Path) -> None:
   carrier_result = next(
     result for result in results if result.dataset_kind == DatasetKind.CARRIER_CLAIMS
   )
+  beneficiary_result = next(
+    result for result in results if result.dataset_kind == DatasetKind.BENEFICIARY_2008
+  )
+
+  assert all(result.status == ConversionStatus.WRITTEN for result in results)
+  assert beneficiary_result.row_count == 1
   assert carrier_result.row_count == 2
+  assert (layout.parquet_dir / 'DE1_0_2008_Beneficiary_Summary_File.parquet').exists()
   assert (layout.parquet_dir / 'DE1_0_2008_to_2010_Carrier_Claims.parquet').exists()
 
 
