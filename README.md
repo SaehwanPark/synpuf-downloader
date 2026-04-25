@@ -1,4 +1,4 @@
-# SynPUF Tools
+# SynPUF Downloader
 
 Functional, type-first tooling for downloading CMS DE-SynPUF archives and converting extracted CSV files into partitioned Parquet datasets.
 
