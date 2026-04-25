@@ -4,13 +4,13 @@ A reproducible local builder for the CMS DE-SynPUF dataset.
 
 SynPUF Downloader downloads the official CMS synthetic public use files, extracts the source CSVs, and converts them into sample-partitioned Parquet datasets that are easier to query from Python, DuckDB, PyArrow, Spark, or an LLM-assisted analysis workflow.
 
-## Why This Exists
+## Motivation
 
 CMS DE-SynPUF is useful for teaching, prototyping claims pipelines, testing cohort logic, and validating feature-engineering code. The raw distribution is less convenient: each sample is split across multiple ZIP archives, carrier claims arrive in two parts, filenames have historical quirks, and CSVs need careful typing so identifiers and medical codes are not corrupted.
 
 This project turns that archive into a local, analysis-ready data lake while keeping the process explicit and reproducible.
 
-## What It Does
+## Features
 
 - Downloads the 8 official source archives for each requested SynPUF sample.
 - Extracts ZIP files into a consistent local layout.
@@ -245,7 +245,7 @@ Recommended implementation flow:
 - ZIP extraction assumes trusted CMS archives. A stricter safe-extraction helper would be a useful hardening improvement.
 - There is not yet a built-in `summary` or `inspect` command for reporting row counts and missing samples.
 
-## Good Future Additions
+## Potential/Future Additions
 
 - `synpuf-summary` command for local dataset validation.
 - Download manifest with URL, filename, byte size, status, and timestamp.
